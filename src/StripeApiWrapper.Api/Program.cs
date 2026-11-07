@@ -26,6 +26,9 @@ builder.Services.Scan(scan => scan
     .AsImplementedInterfaces()
     .WithScopedLifetime());
 
+builder.Services.AddScoped<IStripeEventReader, StripeEventReader>();
+builder.Services.AddHttpClient<IFulfillmentNotifier, HttpFulfillmentNotifier>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -39,6 +42,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => "Hello World!");
 app.MapPaymentEndpoints();
+app.MapWebhookEndpoints();
 
 app.Run();
 

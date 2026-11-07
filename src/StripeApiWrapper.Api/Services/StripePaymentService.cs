@@ -13,6 +13,7 @@ public sealed class StripePaymentService(PaymentIntentService paymentIntentServi
             Currency = request.Currency,
             PaymentMethod = request.PaymentMethodId,
             Description = request.Description,
+            Metadata = request.Metadata is null ? null : new Dictionary<string, string>(request.Metadata),
             Confirm = true,
             AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
             {
