@@ -18,13 +18,16 @@ section `Stripe` → set via User Secrets (`UserSecretsId` is in the csproj) or 
 `Stripe__SecretKey`. Webhook-related keys are optional (service boots without them).
 
 ## Run the whole stack (Docker Compose)
-Compose lives in the sibling **non-repo** dir `../strapi` (see `commerce-architecture`).
-Makefile targets `cd` into it:
+Compose lives in the sibling **`commerce-infrastructure`** repo (`../commerce-infrastructure`;
+see `commerce-architecture`). From `stripe-payment-processor`, the backend Makefile `cd`s into
+it:
 ```
 make docker-recreate      # docker compose up -d --build  (Postgres, Strapi, api, frontend)
 make docker-status        # docker compose ps
 make docker-down          # stop/remove containers; named volumes preserved
 ```
+Or run directly from `../commerce-infrastructure` with its own Makefile (`make recreate`,
+`make status`, `make down`) or `docker compose` commands.
 Published ports: Strapi `1337`, payment API `5212`→8080, frontend `3000`, Postgres `5432`.
 `docker-clean` (commented out) is destructive — it deletes volumes (DB + uploads).
 
