@@ -1,5 +1,5 @@
 # Makefile for .NET project
-.PHONY: start-stripe docker-status docker-down docker-recreate docker-clean
+.PHONY: start-stripe register-apple-pay-domain docker-status docker-down docker-recreate docker-clean
 
 # The Docker Compose stack (Postgres + Strapi + this API + the Next.js
 # frontend) is defined in the sibling `strapi` repo. Compose is run from that
@@ -9,6 +9,19 @@ COMPOSE_DIR := ../strapi
 start-stripe:
 	dotnet clean
 	dotnet run --project ./src/StripeApiWrapper.Api
+
+# One-time Apple Pay domain registration. Stripe handles Apple merchant
+# validation for you (no Apple Merchant ID / CSR needed); you just register
+# every web domain and subdomain that shows the Apple Pay button, in both
+# live mode and test/sandbox. Run once per domain, e.g.:
+#   make register-apple-pay-domain STRIPE_SECRET_KEY=sk_live_... DOMAIN=example.com
+# For local testing, register the HTTPS host from `stripe listen`/ngrok.
+register-apple-pay-domain:
+	@test -n "$(STRIPE_SECRET_KEY)" || (echo "STRIPE_SECRET_KEY is required" && exit 1)
+	@test -n "$(DOMAIN)" || (echo "DOMAIN is required" && exit 1)
+	curl https://api.stripe.com/v1/payment_method_domains \
+	  -u "$(STRIPE_SECRET_KEY):" \
+	  -d "domain_name=$(DOMAIN)"
 
 # Show the status of the compose stack's containers (running + their health).
 docker-status:
