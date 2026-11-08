@@ -1,6 +1,6 @@
 ---
 name: stripe-conventions
-description: Code conventions for the .NET Stripe payment microservice (stripe-payment-processor) — DI registration, PaymentIntent/webhook/fulfillment patterns, the metadata contract, currency handling, config, and PCI posture. Use when adding or changing payment endpoints, services, webhooks, or Stripe options in this repo.
+description: Code conventions for the .NET Stripe payment microservice (stripe-payment-processor) — DI registration, PaymentIntent/webhook/fulfillment patterns, the metadata contract, the StripeService EF Core database (Customer/Address), Serilog logging, currency handling, config, and PCI posture. Use when adding or changing payment endpoints, services, webhooks, the database, logging, or Stripe options in this repo.
 ---
 
 # Stripe payment service conventions
@@ -53,6 +53,36 @@ warning and no-op (don't make Stripe retry forever).
 
 The event-type check uses the literal string `"payment_intent.succeeded"` — the `Events.*`
 constant class is not present in this Stripe.net version.
+
+## Data / StripeService DB (EF Core)
+The API owns a Postgres database **`StripeService`** (EF Core 10, Npgsql) holding local
+`Customer`/`Address` records for reporting — separate from Stripe (the payment source of truth)
+and from Strapi's DB. All code under `Data/`.
+- Entities `Data/Entities/{Customer,Address}.cs`: **Guid** PKs (`gen_random_uuid()` default),
+  **one-to-many** (a customer has many addresses), Stripe-link fields `StripeCustomerId`
+  (updatable, latest `cus_…`) + `StripeSyncedAt`. **No card/PCI data, ever.**
+- `Data/StripeServiceDbContext.cs` sets constraints/indexes in `OnModelCreating`.
+  `Data/StripeServiceDbContextFactory.cs` is a design-time factory so `dotnet ef` builds
+  migrations without running the app.
+- `Program.cs`: `AddDbContext<StripeServiceDbContext>(o => o.UseNpgsql(connString))` where
+  `connString = Configuration.GetConnectionString("StripeService")`.
+- **Startup migration** `db.Database.Migrate()` runs on boot **guarded by a non-empty connection
+  string** — so `WebApplicationFactory<Program>` tests (which set none) skip all DB access and
+  stay DB-free. Migrate also creates the database if it doesn't exist.
+- Migrations live in `Data/Migrations/`; add with
+  `dotnet ef migrations add <Name> --project src/StripeApiWrapper.Api/StripeApiWrapper.Api.csproj -o Data/Migrations`
+  (`dotnet-ef` is a local tool in the manifest). Connection string: local via **user-secrets**,
+  docker via the `ConnectionStrings__StripeService` env in commerce-infrastructure's compose.
+
+## Logging (Serilog)
+**Serilog** is the backend for `ILogger<T>` — app code keeps using plain `ILogger<T>` /
+`logger.LogError(...)`; do **not** reference Serilog outside `Program.cs`. Configured once via
+`builder.Host.UseSerilog(...)`: Console for all output (Information+); **Error+** is routed
+through an Error-only sub-logger + `Serilog.Sinks.Map` to a **per-day folder**
+`logs/<yyyy-MM-dd>/errors.log`. The Error-only sub-logger is deliberate — it means a dated folder
+is created ONLY on days with a real error (no empty folders). In docker, `logs/` is the
+`api-logs` named volume; read with `make logs-errors` / `make logs-errors-ls` (commerce-
+infrastructure). `logs/` is gitignored.
 
 ## Currency
 `CurrencyMinorUnitConverter.ToMinorUnits(decimal, currency)` converts major→minor units with
