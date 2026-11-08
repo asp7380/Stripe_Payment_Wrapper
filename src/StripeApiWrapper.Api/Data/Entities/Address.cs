@@ -22,6 +22,13 @@ public class Address
     // Optional label, e.g. "shipping" or "billing".
     public string? Label { get; set; }
 
+    // Stripe has no id for an address (they're embedded in the customer/payment),
+    // so this holds the cus_... this address is synced under.
+    public string? StripeCustomerId { get; set; }
+
+    // When this address was last pushed to Stripe.
+    public DateTimeOffset? StripeSyncedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

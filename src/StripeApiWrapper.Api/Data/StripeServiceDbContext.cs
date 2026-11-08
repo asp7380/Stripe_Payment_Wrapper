@@ -46,6 +46,8 @@ public class StripeServiceDbContext(DbContextOptions<StripeServiceDbContext> opt
             entity.Property(a => a.PostalCode).IsRequired().HasMaxLength(20);
             entity.Property(a => a.Country).IsRequired().HasMaxLength(2);
             entity.Property(a => a.Label).HasMaxLength(32);
+            entity.Property(a => a.StripeCustomerId).HasMaxLength(64);
+            entity.HasIndex(a => a.StripeCustomerId);
         });
     }
 }

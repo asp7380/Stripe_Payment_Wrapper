@@ -68,12 +68,21 @@ namespace StripeApiWrapper.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("StripeCustomerId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("StripeSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("StripeCustomerId");
 
                     b.ToTable("Addresses");
                 });
@@ -110,6 +119,9 @@ namespace StripeApiWrapper.Api.Data.Migrations
                     b.Property<string>("StripeCustomerId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("StripeSyncedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

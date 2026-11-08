@@ -14,9 +14,12 @@ public class Customer
 
     public string? Phone { get; set; }
 
-    // Links this local record to the Stripe Customer (cus_...). Null until the
-    // Stripe Customer has been created/associated.
+    // Links this local record to the Stripe Customer (cus_...). Updatable: we
+    // write back the latest id Stripe returns. Null until first associated.
     public string? StripeCustomerId { get; set; }
+
+    // When this record's data was last pushed to Stripe.
+    public DateTimeOffset? StripeSyncedAt { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 
