@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Stripe;
+using StripeApiWrapper.Api.Data;
 using StripeApiWrapper.Api.Endpoints;
 using StripeApiWrapper.Api.Options;
 using StripeApiWrapper.Api.Services;
@@ -29,10 +31,25 @@ builder.Services.Scan(scan => scan
 builder.Services.AddScoped<IStripeEventReader, StripeEventReader>();
 builder.Services.AddHttpClient<IFulfillmentNotifier, HttpFulfillmentNotifier>();
 
+// The API owns a StripeService Postgres DB for local Customer/Address records.
+var stripeServiceConnection = builder.Configuration.GetConnectionString("StripeService");
+builder.Services.AddDbContext<StripeServiceDbContext>(options =>
+    options.UseNpgsql(stripeServiceConnection));
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Create the StripeService database (if missing) and apply migrations on
+// startup. Guarded by a configured connection string so the in-process tests
+// (which don't set one) skip all database access.
+if (!string.IsNullOrWhiteSpace(stripeServiceConnection))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<StripeServiceDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
