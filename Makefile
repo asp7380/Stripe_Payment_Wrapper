@@ -2,9 +2,10 @@
 .PHONY: start-stripe register-apple-pay-domain docker-status docker-down docker-recreate docker-clean
 
 # The Docker Compose stack (Postgres + Strapi + this API + the Next.js
-# frontend) is defined in the sibling `strapi` repo. Compose is run from that
-# directory via `cd` so its .env file and relative build contexts resolve.
-COMPOSE_DIR := ../strapi
+# frontend) is defined in the sibling `commerce-infrastructure` repo. Compose is
+# run from that directory via `cd` so its .env file and relative build contexts
+# resolve.
+COMPOSE_DIR := ../commerce-infrastructure
 
 start-stripe:
 	dotnet clean
