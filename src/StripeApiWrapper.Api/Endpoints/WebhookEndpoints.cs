@@ -32,7 +32,7 @@ public static class WebhookEndpoints
                 return Results.BadRequest();
             }
 
-            if (stripeEvent.Type == "payment_intent.succeeded"
+            if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded
                 && stripeEvent.Data.Object is PaymentIntent paymentIntent)
             {
                 // Local reporting upsert. Non-fatal: a failure here is logged but

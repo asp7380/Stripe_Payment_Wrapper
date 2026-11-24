@@ -2,5 +2,5 @@ namespace StripeApiWrapper.Api.Contracts;
 
 public sealed record CreatePaymentResponse(
     string PaymentIntentId,
-    string Status,
+    PaymentStatus Status,
     string? ClientSecret);

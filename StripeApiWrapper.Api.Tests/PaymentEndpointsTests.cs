@@ -28,7 +28,7 @@ public class PaymentEndpointsTests
     [Fact]
     public async Task PostPayments_ReturnsOk_WhenPaymentSucceeds()
     {
-        var expected = new CreatePaymentResponse("pi_123", "succeeded", "pi_123_secret_abc");
+        var expected = new CreatePaymentResponse("pi_123", PaymentStatus.Succeeded, "pi_123_secret_abc");
         await using var factory = CreateFactory(new FakePaymentService(_ => expected));
         using var client = factory.CreateClient();
 
@@ -80,7 +80,7 @@ public class PaymentEndpointsTests
     public async Task PostPayments_ForwardsMetadata_ToService()
     {
         CreatePaymentRequest? captured = null;
-        var expected = new CreatePaymentResponse("pi_123", "succeeded", "pi_123_secret_abc");
+        var expected = new CreatePaymentResponse("pi_123", PaymentStatus.Succeeded, "pi_123_secret_abc");
         await using var factory = CreateFactory(new FakePaymentService(req =>
         {
             captured = req;
@@ -108,7 +108,7 @@ public class PaymentEndpointsTests
     public async Task PostPayments_ForwardsCustomerInfo_ToService()
     {
         CreatePaymentRequest? captured = null;
-        var expected = new CreatePaymentResponse("pi_1", "succeeded", "pi_1_secret");
+        var expected = new CreatePaymentResponse("pi_1", PaymentStatus.Succeeded, "pi_1_secret");
         await using var factory = CreateFactory(new FakePaymentService(req =>
         {
             captured = req;

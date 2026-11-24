@@ -1,4 +1,5 @@
 using Stripe;
+using StripeApiWrapper.Api.Constants;
 using StripeApiWrapper.Api.Contracts;
 
 namespace StripeApiWrapper.Api.Services;
@@ -58,29 +59,29 @@ public sealed class StripePaymentService(
 
         var intent = await paymentIntentService.CreateAsync(options, cancellationToken: cancellationToken);
 
-        return new CreatePaymentResponse(intent.Id, intent.Status, intent.ClientSecret);
+        return new CreatePaymentResponse(intent.Id, PaymentStatusMapper.FromStripe(intent.Status), intent.ClientSecret);
     }
 
     private static void AddCustomerMetadata(Dictionary<string, string> metadata, CustomerInfo customer, string stripeCustomerId)
     {
-        metadata["customerStripeId"] = stripeCustomerId;
-        metadata["customerFirstName"] = customer.FirstName;
-        metadata["customerLastName"] = customer.LastName;
-        metadata["customerEmail"] = customer.Email;
+        metadata[PaymentMetadataKeys.CustomerStripeId] = stripeCustomerId;
+        metadata[PaymentMetadataKeys.CustomerFirstName] = customer.FirstName;
+        metadata[PaymentMetadataKeys.CustomerLastName] = customer.LastName;
+        metadata[PaymentMetadataKeys.CustomerEmail] = customer.Email;
         if (!string.IsNullOrWhiteSpace(customer.Phone))
         {
-            metadata["customerPhone"] = customer.Phone;
+            metadata[PaymentMetadataKeys.CustomerPhone] = customer.Phone;
         }
 
-        metadata["shipLine1"] = customer.Shipping.Line1;
+        metadata[PaymentMetadataKeys.ShipLine1] = customer.Shipping.Line1;
         if (!string.IsNullOrWhiteSpace(customer.Shipping.Line2))
         {
-            metadata["shipLine2"] = customer.Shipping.Line2;
+            metadata[PaymentMetadataKeys.ShipLine2] = customer.Shipping.Line2;
         }
 
-        metadata["shipCity"] = customer.Shipping.City;
-        metadata["shipState"] = customer.Shipping.State;
-        metadata["shipPostalCode"] = customer.Shipping.PostalCode;
-        metadata["shipCountry"] = customer.Shipping.Country;
+        metadata[PaymentMetadataKeys.ShipCity] = customer.Shipping.City;
+        metadata[PaymentMetadataKeys.ShipState] = customer.Shipping.State;
+        metadata[PaymentMetadataKeys.ShipPostalCode] = customer.Shipping.PostalCode;
+        metadata[PaymentMetadataKeys.ShipCountry] = customer.Shipping.Country;
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StripeApiWrapper.Api.Constants;
 using StripeApiWrapper.Api.Data;
 using StripeApiWrapper.Api.Data.Entities;
 
@@ -14,13 +15,13 @@ public sealed class LocalCustomerStore(StripeServiceDbContext db) : ILocalCustom
     {
         var metadata = paymentIntent.Metadata;
         if (metadata is null
-            || !metadata.TryGetValue("customerEmail", out var email)
+            || !metadata.TryGetValue(PaymentMetadataKeys.CustomerEmail, out var email)
             || string.IsNullOrWhiteSpace(email))
         {
             return; // this payment carried no customer info
         }
 
-        var stripeCustomerId = paymentIntent.CustomerId ?? metadata.GetValueOrDefault("customerStripeId");
+        var stripeCustomerId = paymentIntent.CustomerId ?? metadata.GetValueOrDefault(PaymentMetadataKeys.CustomerStripeId);
         var now = DateTimeOffset.UtcNow;
 
         // Upsert by email (dedup mirrors the Stripe-side look-up-or-create).
@@ -34,15 +35,15 @@ public sealed class LocalCustomerStore(StripeServiceDbContext db) : ILocalCustom
             db.Customers.Add(customer);
         }
 
-        customer.FirstName = metadata.GetValueOrDefault("customerFirstName") ?? customer.FirstName;
-        customer.LastName = metadata.GetValueOrDefault("customerLastName") ?? customer.LastName;
-        customer.Phone = metadata.GetValueOrDefault("customerPhone");
+        customer.FirstName = metadata.GetValueOrDefault(PaymentMetadataKeys.CustomerFirstName) ?? customer.FirstName;
+        customer.LastName = metadata.GetValueOrDefault(PaymentMetadataKeys.CustomerLastName) ?? customer.LastName;
+        customer.Phone = metadata.GetValueOrDefault(PaymentMetadataKeys.CustomerPhone);
         customer.StripeCustomerId = stripeCustomerId;
         customer.StripeSyncedAt = now;
         customer.UpdatedAt = now;
 
         // Upsert the single "shipping" address for this customer.
-        if (metadata.TryGetValue("shipLine1", out var line1) && !string.IsNullOrWhiteSpace(line1))
+        if (metadata.TryGetValue(PaymentMetadataKeys.ShipLine1, out var line1) && !string.IsNullOrWhiteSpace(line1))
         {
             var address = customer.Addresses.FirstOrDefault(a => a.Label == ShippingLabel);
             if (address is null)
@@ -52,11 +53,11 @@ public sealed class LocalCustomerStore(StripeServiceDbContext db) : ILocalCustom
             }
 
             address.Line1 = line1;
-            address.Line2 = metadata.GetValueOrDefault("shipLine2");
-            address.City = metadata.GetValueOrDefault("shipCity") ?? string.Empty;
-            address.State = metadata.GetValueOrDefault("shipState") ?? string.Empty;
-            address.PostalCode = metadata.GetValueOrDefault("shipPostalCode") ?? string.Empty;
-            address.Country = metadata.GetValueOrDefault("shipCountry") ?? string.Empty;
+            address.Line2 = metadata.GetValueOrDefault(PaymentMetadataKeys.ShipLine2);
+            address.City = metadata.GetValueOrDefault(PaymentMetadataKeys.ShipCity) ?? string.Empty;
+            address.State = metadata.GetValueOrDefault(PaymentMetadataKeys.ShipState) ?? string.Empty;
+            address.PostalCode = metadata.GetValueOrDefault(PaymentMetadataKeys.ShipPostalCode) ?? string.Empty;
+            address.Country = metadata.GetValueOrDefault(PaymentMetadataKeys.ShipCountry) ?? string.Empty;
             address.StripeCustomerId = stripeCustomerId;
             address.StripeSyncedAt = now;
             address.UpdatedAt = now;
