@@ -42,6 +42,9 @@ builder.Services.AddSingleton<IStripeClient>(sp =>
 });
 
 builder.Services.AddScoped(sp => new PaymentIntentService(sp.GetRequiredService<IStripeClient>()));
+builder.Services.AddScoped(sp => new CustomerService(sp.GetRequiredService<IStripeClient>()));
+builder.Services.AddScoped<IStripeCustomerService, StripeCustomerService>();
+builder.Services.AddScoped<ILocalCustomerStore, LocalCustomerStore>();
 
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<Program>()

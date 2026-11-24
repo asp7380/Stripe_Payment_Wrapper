@@ -104,6 +104,51 @@ public class PaymentEndpointsTests
         Assert.Equal("2", captured.Metadata["quantity"]);
     }
 
+    [Fact]
+    public async Task PostPayments_ForwardsCustomerInfo_ToService()
+    {
+        CreatePaymentRequest? captured = null;
+        var expected = new CreatePaymentResponse("pi_1", "succeeded", "pi_1_secret");
+        await using var factory = CreateFactory(new FakePaymentService(req =>
+        {
+            captured = req;
+            return expected;
+        }));
+        using var client = factory.CreateClient();
+
+        var payload = new
+        {
+            amount = 25.00m,
+            currency = "usd",
+            paymentMethodId = "pm_card_visa",
+            description = "Test payment",
+            customer = new
+            {
+                firstName = "Jane",
+                lastName = "Doe",
+                email = "jane@example.com",
+                phone = "+15555550123",
+                shipping = new
+                {
+                    line1 = "1 Main St",
+                    line2 = (string?)null,
+                    city = "Springfield",
+                    state = "IL",
+                    postalCode = "62704",
+                    country = "US",
+                },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/payments", payload);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(captured?.Customer);
+        Assert.Equal("Jane", captured!.Customer!.FirstName);
+        Assert.Equal("jane@example.com", captured.Customer.Email);
+        Assert.Equal("62704", captured.Customer.Shipping.PostalCode);
+        Assert.Equal("US", captured.Customer.Shipping.Country);
+    }
+
     private sealed class FakePaymentService(Func<CreatePaymentRequest, CreatePaymentResponse> handler) : IPaymentService
     {
         public Task<CreatePaymentResponse> CreatePaymentAsync(CreatePaymentRequest request, CancellationToken cancellationToken)

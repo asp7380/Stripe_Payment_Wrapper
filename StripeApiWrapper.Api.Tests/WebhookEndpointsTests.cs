@@ -13,7 +13,8 @@ public class WebhookEndpointsTests
 {
     private static WebApplicationFactory<Program> CreateFactory(
         IStripeEventReader eventReader,
-        IFulfillmentNotifier fulfillmentNotifier)
+        IFulfillmentNotifier fulfillmentNotifier,
+        ILocalCustomerStore? localCustomerStore = null)
     {
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -25,6 +26,11 @@ public class WebhookEndpointsTests
                 services.AddSingleton(eventReader);
                 services.RemoveAll<IFulfillmentNotifier>();
                 services.AddSingleton(fulfillmentNotifier);
+                if (localCustomerStore is not null)
+                {
+                    services.RemoveAll<ILocalCustomerStore>();
+                    services.AddSingleton(localCustomerStore);
+                }
             });
         });
     }
@@ -114,9 +120,70 @@ public class WebhookEndpointsTests
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostWebhook_UpsertsLocalCustomer_OnPaymentIntentSucceeded()
+    {
+        var paymentIntent = new PaymentIntent { Id = "pi_cust" };
+        var stripeEvent = new Event
+        {
+            Type = "payment_intent.succeeded",
+            Data = new EventData { Object = paymentIntent },
+        };
+
+        var notifier = new RecordingFulfillmentNotifier();
+        var store = new RecordingLocalCustomerStore();
+        var reader = new FakeEventReader((_, _) => stripeEvent);
+        await using var factory = CreateFactory(reader, notifier, store);
+        using var client = factory.CreateClient();
+
+        var response = await PostWebhook(client, "{}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, store.CallCount);
+        Assert.Equal("pi_cust", store.Received?.Id);
+        Assert.Equal(1, notifier.CallCount);
+    }
+
+    [Fact]
+    public async Task PostWebhook_LocalUpsertFailure_IsNonFatal()
+    {
+        var stripeEvent = new Event
+        {
+            Type = "payment_intent.succeeded",
+            Data = new EventData { Object = new PaymentIntent { Id = "pi_x" } },
+        };
+
+        var notifier = new RecordingFulfillmentNotifier();
+        // The local upsert throws, but the webhook must still succeed and
+        // fulfillment must still run.
+        var store = new RecordingLocalCustomerStore(() => throw new InvalidOperationException("db down"));
+        var reader = new FakeEventReader((_, _) => stripeEvent);
+        await using var factory = CreateFactory(reader, notifier, store);
+        using var client = factory.CreateClient();
+
+        var response = await PostWebhook(client, "{}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, notifier.CallCount);
+    }
+
     private sealed class FakeEventReader(Func<string, string, Event> handler) : IStripeEventReader
     {
         public Event Construct(string json, string signatureHeader) => handler(json, signatureHeader);
+    }
+
+    private sealed class RecordingLocalCustomerStore(Action? onCall = null) : ILocalCustomerStore
+    {
+        public PaymentIntent? Received { get; private set; }
+        public int CallCount { get; private set; }
+
+        public Task UpsertFromPaymentAsync(PaymentIntent paymentIntent, CancellationToken cancellationToken)
+        {
+            Received = paymentIntent;
+            CallCount++;
+            onCall?.Invoke();
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingFulfillmentNotifier(Action? onCall = null) : IFulfillmentNotifier

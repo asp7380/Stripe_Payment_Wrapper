@@ -11,6 +11,7 @@ public static class WebhookEndpoints
             HttpRequest request,
             IStripeEventReader eventReader,
             IFulfillmentNotifier fulfillmentNotifier,
+            ILocalCustomerStore localCustomerStore,
             ILogger<Program> logger,
             CancellationToken cancellationToken) =>
         {
@@ -34,6 +35,19 @@ public static class WebhookEndpoints
             if (stripeEvent.Type == "payment_intent.succeeded"
                 && stripeEvent.Data.Object is PaymentIntent paymentIntent)
             {
+                // Local reporting upsert. Non-fatal: a failure here is logged but
+                // must not block fulfillment or force Stripe to retry the webhook.
+                try
+                {
+                    await localCustomerStore.UpsertFromPaymentAsync(paymentIntent, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Local customer upsert failed for payment {PaymentIntentId}.",
+                        paymentIntent.Id);
+                }
+
                 try
                 {
                     await fulfillmentNotifier.NotifyAsync(paymentIntent, cancellationToken);
