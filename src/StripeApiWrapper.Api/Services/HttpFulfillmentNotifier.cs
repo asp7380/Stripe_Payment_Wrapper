@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
 using Stripe;
+using StripeApiWrapper.Api.Constants;
 using StripeApiWrapper.Api.Options;
 
 namespace StripeApiWrapper.Api.Services;
@@ -23,7 +24,7 @@ public sealed class HttpFulfillmentNotifier(
         }
 
         var metadata = paymentIntent.Metadata ?? new Dictionary<string, string>();
-        if (!metadata.TryGetValue("productSlug", out var productSlug) || string.IsNullOrWhiteSpace(productSlug))
+        if (!metadata.TryGetValue(PaymentMetadataKeys.ProductSlug, out var productSlug) || string.IsNullOrWhiteSpace(productSlug))
         {
             logger.LogWarning(
                 "Payment {PaymentIntentId} succeeded but carries no productSlug metadata; nothing to fulfill.",
@@ -32,7 +33,7 @@ public sealed class HttpFulfillmentNotifier(
         }
 
         var quantity = 1;
-        if (metadata.TryGetValue("quantity", out var quantityRaw)
+        if (metadata.TryGetValue(PaymentMetadataKeys.Quantity, out var quantityRaw)
             && int.TryParse(quantityRaw, out var parsed)
             && parsed > 0)
         {

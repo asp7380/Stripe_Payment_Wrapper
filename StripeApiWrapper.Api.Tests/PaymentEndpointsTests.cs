@@ -28,7 +28,7 @@ public class PaymentEndpointsTests
     [Fact]
     public async Task PostPayments_ReturnsOk_WhenPaymentSucceeds()
     {
-        var expected = new CreatePaymentResponse("pi_123", "succeeded", "pi_123_secret_abc");
+        var expected = new CreatePaymentResponse("pi_123", PaymentStatus.Succeeded, "pi_123_secret_abc");
         await using var factory = CreateFactory(new FakePaymentService(_ => expected));
         using var client = factory.CreateClient();
 
@@ -80,7 +80,7 @@ public class PaymentEndpointsTests
     public async Task PostPayments_ForwardsMetadata_ToService()
     {
         CreatePaymentRequest? captured = null;
-        var expected = new CreatePaymentResponse("pi_123", "succeeded", "pi_123_secret_abc");
+        var expected = new CreatePaymentResponse("pi_123", PaymentStatus.Succeeded, "pi_123_secret_abc");
         await using var factory = CreateFactory(new FakePaymentService(req =>
         {
             captured = req;
@@ -102,6 +102,51 @@ public class PaymentEndpointsTests
         Assert.NotNull(captured?.Metadata);
         Assert.Equal("widget", captured!.Metadata!["productSlug"]);
         Assert.Equal("2", captured.Metadata["quantity"]);
+    }
+
+    [Fact]
+    public async Task PostPayments_ForwardsCustomerInfo_ToService()
+    {
+        CreatePaymentRequest? captured = null;
+        var expected = new CreatePaymentResponse("pi_1", PaymentStatus.Succeeded, "pi_1_secret");
+        await using var factory = CreateFactory(new FakePaymentService(req =>
+        {
+            captured = req;
+            return expected;
+        }));
+        using var client = factory.CreateClient();
+
+        var payload = new
+        {
+            amount = 25.00m,
+            currency = "usd",
+            paymentMethodId = "pm_card_visa",
+            description = "Test payment",
+            customer = new
+            {
+                firstName = "Jane",
+                lastName = "Doe",
+                email = "jane@example.com",
+                phone = "+15555550123",
+                shipping = new
+                {
+                    line1 = "1 Main St",
+                    line2 = (string?)null,
+                    city = "Springfield",
+                    state = "IL",
+                    postalCode = "62704",
+                    country = "US",
+                },
+            },
+        };
+        var response = await client.PostAsJsonAsync("/api/payments", payload);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(captured?.Customer);
+        Assert.Equal("Jane", captured!.Customer!.FirstName);
+        Assert.Equal("jane@example.com", captured.Customer.Email);
+        Assert.Equal("62704", captured.Customer.Shipping.PostalCode);
+        Assert.Equal("US", captured.Customer.Shipping.Country);
     }
 
     private sealed class FakePaymentService(Func<CreatePaymentRequest, CreatePaymentResponse> handler) : IPaymentService
